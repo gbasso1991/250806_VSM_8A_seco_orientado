@@ -195,4 +195,59 @@ for nombre, H, m in [
     H_fit_arrays[nombre] = fit.X
     m_fit_arrays[nombre] = m_fit_sin_lineal
 
-# %%
+# %% Ahora comparo con 8A en FF y 8A seco
+data_8A_FF = np.loadtxt(os.path.join('data_FF','8A_FF.txt'), skiprows=12)
+H_8A_FF = data_8A_FF[:, 0]  # Gauss
+m_8A_FF = data_8A_FF[:, 1]  # emu
+masa_8A_FF=0.0496 #g
+C_mm = 10/1000 # uso densidad del H2O 1000 g/L
+
+data_8A_seco = np.loadtxt(os.path.join('data_seco','8A_seco.txt'), skiprows=12)
+H_8A_seco = data_8A_seco[:, 0]  # Gauss
+m_8A_seco = data_8A_seco[:, 1]
+masa_8A_seco=0.00028 #g
+
+data_parafilm = np.loadtxt(os.path.join('data_seco','Parafilm.txt'), skiprows=12)
+H_parafilm = data_parafilm[:, 0]  # Gauss
+m_parafilm = data_parafilm[:, 1]  # emu 
+
+
+#%% Armo vectores
+H_parafilm = data_parafilm[:, 0]  # Gauss
+m_parafilm = data_parafilm[:, 1]  # emu
+
+H_8A = data_8A[:, 0]  # Gauss
+m_8A = data_8A[:, 1]  # emu
+
+fig1, ax = plt.subplots(figsize=(6,4), constrained_layout=True)
+ax.plot(H_parafilm, m_parafilm, '.-', label='Parafilm')
+ax.plot(H_8A, m_8A, '.-', label='8A seco')
+
+for a in [ax]:
+    a.legend(ncol=1)
+    a.grid()
+    a.set_ylabel('m (emu)')
+plt.xlabel('H (G)')
+plt.show()
+#%% Resto contribucion lineal
+# normalizo -> pendiente -> escaleo -> resto
+masa_pfilm_virgen=56.20 #mg (medida sin NP)
+masa_pfilm= 90.08 #mg (antes de depositar 50 uL de FF)
+masa_pfilm_FF = 90.33 #mg (una vez secos los 50 uL) 
+masa_NP_8A=(masa_pfilm_FF-masa_pfilm)*1e-3 #g
+
+
+m_pfilm_norm = m_parafilm/(masa_pfilm_virgen*1e-3) #emu/g  -  Normalizo
+
+(pend,ord),pcov=curve_fit(lineal,H_parafilm,m_pfilm_norm) # (emu/g , emu/g/G) - Ordenada/Pendiente 
+
+susceptibilidad_parafilm=ufloat(pend,np.sqrt(np.diag(pcov))[0]) # emu/g/G
+print(f'Susceptibilidad Parafilm: {susceptibilidad_parafilm:.1ue} emu/g/G')
+m_aux=(ord + pend*H_8A)*(masa_pfilm*1e-3)   #emu - Escaleo
+m_8A_sin_diamag=m_8A-m_aux #emu   - Resto
+
+
+
+
+
+# %% 
