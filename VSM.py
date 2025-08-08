@@ -48,7 +48,7 @@ def coercive_field(H, M):
     # Incertidumbre: diferencia entre los valores absolutos
     hc_unc = abs(abs(hc_values[0]) - abs(hc_values[1]))
     return ufloat(hc_mean, hc_unc)
-#%% Levanto Archivos
+#%% Levanto Archivos Seco orientado
 data_horiz = np.loadtxt(os.path.join('data','8A_seco_orientado_horiz.txt'), skiprows=12)
 H_horiz = data_horiz[:, 0]  # Gauss
 m_horiz = data_horiz[:, 1]  # emu
@@ -61,8 +61,7 @@ data_verti = np.loadtxt(os.path.join('data','8A_seco_orientado_vert.txt'), skipr
 H_verti = data_verti[:, 0]  # Gauss
 m_verti = data_verti[:, 1]  # emu
 
-
-#%% PLOTEO ALL
+#% PLOTEO ALL
 fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
 a.plot(H_horiz, m_horiz, '.-', label='Horizontal')
 a.plot(H_para, m_para, '.-', label='Paralelo')
@@ -71,7 +70,6 @@ a.set_ylabel('m (emu)')
 a.legend()
 a.grid()
 a.set_title('8A - Muestra seca orientada')
-
 plt.show()
 #%% Descuento contribucion diamagnética del parafilm
 susceptibilidad_pfilm = -8.514e-7 # emu/g/G
@@ -113,8 +111,7 @@ c.set_ylabel('m (emu)')
 c.set_title('Vertical')
 c.legend()
 c.grid()
-
-axs[2].set_xlabel('H (G)')
+c.set_xlabel('H (G)')
 plt.show()
 
 #%% Normalizo por masa NPM
@@ -132,7 +129,7 @@ print(f'Horiz: {hc_horiz:.1uS} G')
 print(f'Para: {hc_para:.1uS} G')
 print(f'Verti: {hc_verti:.1uS} G')
 
-#PLOTEO NORMALIZADO
+#PLOTEO NORMALIZADO por masa NPM
 fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
 a.plot(H_horiz, m_horiz_norm, '-', label=f'Horizontal\nHc={hc_horiz:.1uS} G')
 a.plot(H_para, m_para_norm, '-', label=f'Paralelo\nHc={hc_para:.1uS}  G')
@@ -140,12 +137,10 @@ a.plot(H_verti, m_verti_norm, '-', label=f'Vertical\nHc={hc_verti:.1uS} G')
 a.set_ylabel('m (emu)')
 a.legend()
 a.grid()
-a.set_title('8A - Secado c/ iman y orientado')
+a.set_title('8A - Secado c/ iman y orientado - Normalizado por masa NPM')
 plt.savefig('8A_seco_orientado_h_p_v.png', dpi=300)
 plt.show()
-#%%
-
-
+#%% Aux 
 fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
 a.plot(H_para, m_para_norm, '.-', label=f'Paralelo\nHc={hc_para:.1uS}  G')
 a.set_ylabel('m (emu)')
@@ -154,46 +149,65 @@ a.grid()
 a.set_title('8A - Secado c/ iman y orientado')
 plt.show()
 
-# %% Fiteo 
-resultados_fit = {}
-H_fit_arrays = {}
-m_fit_arrays = {}
+# %% Fitting 
+# Para almacenar resultados para graficar luego
+ajustes = []
 
 for nombre, H, m in [
     ('horiz', H_horiz, m_horiz_norm), 
+    ('para',  H_para,  m_para_norm),
     ('verti', H_verti, m_verti_norm)]:
     
+    # Obtener curva anhistérica
     H_anhist, m_anhist = mt.anhysteretic(H, m)
+    
+    # Crear sesión de ajuste
     fit = fit3.session(H_anhist, m_anhist, fname=nombre, divbymass=False)
+    
+    # Primer ajuste con mu y sigma fijos
     fit.fix('sig0')
     fit.fix('mu0')
     fit.free('dc')
     fit.fit()
     fit.update()
+
+    # Segundo ajuste liberando mu y sigma
     fit.free('sig0')
     fit.free('mu0')
-    fit.set_yE_as('sep')
+    fit.set_yE_as('sep')  # pesos por separación
     fit.fit()
     fit.update()
+
+    # Guardar ajuste
     fit.save()
-    fit.print_pars()
-    # Obtengo la contribución lineal usando los parámetros del fit
-    C = fit.params['C'].value
-    dc = fit.params['dc'].value
-    linear_contrib = lineal(fit.X, C, dc)
-    m_fit_sin_lineal = fit.Y - linear_contrib
-    m_saturacion = ufloat(np.mean([max(m_fit_sin_lineal),-min(m_fit_sin_lineal)]), np.std([max(m_fit_sin_lineal),-min(m_fit_sin_lineal)]))
-    resultados_fit[nombre]={'H_anhist': H_anhist,
-                            'm_anhist': m_anhist,
-                            'H_fit': fit.X,
-                            'm_fit': fit.Y,
-                            'm_fit_sin_lineal': m_fit_sin_lineal,
-                            'linear_contrib': linear_contrib,
-                            'Ms':m_saturacion,
-                            'fit': fit}
     
-    H_fit_arrays[nombre] = fit.X
-    m_fit_arrays[nombre] = m_fit_sin_lineal
+    # Mostrar parámetros ajustados y derivados
+    fit.print_pars()
+    
+    # Mostrar parámetros derivados con unidad
+    pars = fit.derived_parameters()
+    for key, val in pars.items():
+        unit = fit3.session.units.get(key, '')
+    print(f"{key:15s} = {val} {unit}")    
+    # Guardar los datos para graficar luego
+    H_fit = fit.X
+    m_exp = fit.Y
+    m_model = fit.Yfit  # resultado del ajuste
+    ajustes.append((nombre, H_fit, m_exp, m_model))
+
+plt.figure(figsize=(10, 6))
+for nombre, H, m_exp, m_fit in ajustes:
+    plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
+    plt.plot(H, m_fit, '-', label=f'{nombre} fit')
+
+plt.xlabel('Campo magnético H (Oe)')
+plt.ylabel('Magnetización M (emu o emu/g)')
+plt.legend()
+plt.title('Comparación de ajuste vs datos experimentales')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
 
 # %% Ahora comparo con 8A en FF y 8A seco
 data_8A_FF = np.loadtxt(os.path.join('data_FF','8A_FF.txt'), skiprows=12)
@@ -251,3 +265,18 @@ m_8A_sin_diamag=m_8A-m_aux #emu   - Resto
 
 
 # %% 
+#PLOTEO NORMALIZADO al maximo valor 
+fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
+a.plot(H_horiz, m_horiz_norm/max(m_horiz_norm), '-', label=f'Horizontal')
+a.plot(H_para, m_para_norm/max( m_para_norm), '-', label=f'Paralelo')
+a.plot(H_verti, m_verti_norm/max(m_verti_norm), '-', label=f'Vertical')
+
+
+
+a.set_xlabel('G')
+a.set_ylabel('m (emu)')
+a.legend()
+a.grid()
+a.set_title('8A - Secado c/ iman y orientado - normalizado a valor maximo')
+plt.savefig('8A_seco_orientado_h_p_v.png', dpi=300)
+plt.show()

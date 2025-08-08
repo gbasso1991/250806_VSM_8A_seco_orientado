@@ -10,9 +10,6 @@ VSM Data File: C:\IDEASVSM\LS_QC\BA_seco_orientado_para.dat
 ***DATA***
 
 Field(G)	 Moment(emu)	
- 14653.5 	 0.00516658 	
- 14653.6 	 0.0051697 	
- 14653.6 	 0.00516749 	
  14000 	 0.00518063 	
  12998 	 0.0051947 	
  11999.6 	 0.00520317 	
