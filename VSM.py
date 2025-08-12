@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import os
-from sklearn.metrics import r2_score 
+from sklearn.metrics import r2_score
 from mlognormfit import fit3
 from mvshtools import mvshtools as mt
 import re
@@ -15,13 +15,13 @@ def lineal(x,m,n):
 
 def coercive_field(H, M):
     """
-    Devuelve el valor medio del campo coercitivo (Hc) como ufloat, 
+    Devuelve el valor medio del campo coercitivo (Hc) como ufloat,
     imprime ambos valores de Hc encontrados.
-    
+
     Parámetros:
     - H: np.array, campo magnético (en A/m o kA/m)
     - M: np.array, magnetización (en emu/g)
-    
+
     Retorna:
     - hc_ufloat: ufloat con el valor medio y la diferencia absoluta como incertidumbre
     """
@@ -61,16 +61,16 @@ data_verti = np.loadtxt(os.path.join('data','8A_seco_orientado_vert.txt'), skipr
 H_verti = data_verti[:, 0]  # Gauss
 m_verti = data_verti[:, 1]  # emu
 
-#% PLOTEO ALL
-fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
-a.plot(H_horiz, m_horiz, '.-', label='Horizontal')
-a.plot(H_para, m_para, '.-', label='Paralelo')
-a.plot(H_verti, m_verti, '.-', label='Vertical')
-a.set_ylabel('m (emu)')
-a.legend()
-a.grid()
-a.set_title('8A - Muestra seca orientada')
-plt.show()
+# fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
+# a.plot(H_horiz, m_horiz, '.-', label='Horizontal')
+# a.plot(H_para, m_para, '.-', label='Paralelo')
+# a.plot(H_verti, m_verti, '.-', label='Vertical')
+# a.set_ylabel('m (emu)')
+# a.legend()
+# a.grid()
+# a.set_title('8A - Muestra seca orientada')
+# plt.show()
+#%
 # #% Descuento contribucion diamagnética del parafilm
 # susceptibilidad_pfilm = -8.514e-7 # emu/g/G
 # masa_pfilm = 0.00739 # g
@@ -82,7 +82,7 @@ plt.show()
 # m_horiz_new = m_horiz - diamag_horiz
 # m_para_new = m_para - diamag_para
 # m_verti_new = m_verti - diamag_verti
- 
+
 # fig, (a,b,c) = plt.subplots(3, 1, figsize=(8, 12), sharex=True, constrained_layout=True)
 
 # # Horizontal
@@ -117,8 +117,8 @@ plt.show()
 #% Normalizo por masa NPM
 masa_NPM = 0.00028  # g
 m_horiz_norm = m_horiz / masa_NPM
-m_para_norm = m_para / masa_NPM 
-m_verti_norm = m_verti / masa_NPM 
+m_para_norm = m_para / masa_NPM
+m_verti_norm = m_verti / masa_NPM
 
 # Calculo de campo coercitivo
 hc_horiz = coercive_field(H_horiz, m_horiz_norm)
@@ -129,41 +129,35 @@ print(f'Horiz: {hc_horiz:.1uS} G')
 print(f'Para: {hc_para:.1uS} G')
 print(f'Verti: {hc_verti:.1uS} G')
 
-#PLOTEO NORMALIZADO por masa NPM
-fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
-a.plot(H_horiz, m_horiz_norm, '-', label=f'Horizontal\nHc={hc_horiz:.1uS} G')
-a.plot(H_para, m_para_norm, '-', label=f'Paralelo\nHc={hc_para:.1uS}  G')
-a.plot(H_verti, m_verti_norm, '-', label=f'Vertical\nHc={hc_verti:.1uS} G')
-a.set_ylabel('m (emu)')
+#%PLOTEO NORMALIZADO por masa NPM
+fig, a= plt.subplots(1, 1, figsize=(6,4), sharex=True, sharey=True, constrained_layout=True)
+a.plot(H_horiz, m_horiz_norm, '.-', label=f'8A seco - Horizontal')
+a.plot(H_para, m_para_norm, '.-', label=f'8A seco - Paralelo')
+a.plot(H_verti, m_verti_norm, '.-', label=f'8A seco - Vertical')
+a.set_ylabel('m (emu/g)')
 a.legend()
 a.grid()
-a.set_title('8A - Secado c/ iman y orientado - Normalizado por masa NPM')
-plt.savefig('8A_seco_orientado_h_p_v.png', dpi=300)
-plt.show()
-#% Aux 
-fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
-a.plot(H_para, m_para_norm, '.-', label=f'Paralelo\nHc={hc_para:.1uS}  G')
-a.set_ylabel('m (emu)')
-a.legend()
-a.grid()
-a.set_title('8A - Secado c/ iman y orientado')
+plt.xlabel('H (G)')
+
+#a.set_title('8A - Secado c/ iman y orientado - Normalizado por masa NPM')
+plt.savefig('8A_seco_orientado_h_p_v_raw.png', dpi=300)
 plt.show()
 
-# Fitting 
+#% Fitting
 # Para almacenar resultados para graficar luego
 ajustes_seco_orientado = []
 
-for nombre, H, m in [
-    ('horiz', H_horiz, m_horiz_norm), 
-    ('para',  H_para,  m_para_norm),
-    ('verti', H_verti, m_verti_norm)]:
-    
+for nombre, H, m in [('horiz', H_horiz, m_horiz_norm),
+                        ('para', H_para, m_para_norm),
+                     ('verti', H_verti, m_verti_norm),
+                     ]:
+
     # Obtener curva anhistérica
     H_anhist, m_anhist = mt.anhysteretic(H, m)
-    
+
     # Crear sesión de ajuste
     fit = fit3.session(H_anhist, m_anhist, fname=nombre, divbymass=False)
-    
+
     # Primer ajuste con mu y sigma fijos
     fit.fix('sig0')
     fit.fix('mu0')
@@ -180,24 +174,24 @@ for nombre, H, m in [
 
     # Guardar ajuste
     fit.save()
-    
+
     # Mostrar parámetros ajustados y derivados
     fit.print_pars()
-    
+
     # Mostrar parámetros derivados con unidad
     pars = fit.derived_parameters()
     for key, val in pars.items():
         unit = fit3.session.units.get(key, '')
-    print(f"{key:15s} = {val} {unit}")    
+    print(f"{key:15s} = {val} {unit}")
     # Guardar los datos para graficar luego
     H_fit = fit.X
     m_ah = fit.Y
     m_fit = fit.Yfit  # resultado del ajuste
     m_fit_sin_diamag = m_fit - H_fit*fit.params['C'].value - fit.params['dc'].value
     ajustes_seco_orientado.append((nombre, H_fit, m_ah, m_fit, m_fit_sin_diamag))
-
-plt.figure(figsize=(10, 6),constrained_layout=True)
-for nombre, H, m_exp, m_fit in ajustes_seco_orientado:
+#%%
+plt.figure(figsize=(6,4),constrained_layout=True)
+for nombre, H,  m_exp, m_fit,a in ajustes_seco_orientado:
     plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
     plt.plot(H, m_fit, '-', label=f'{nombre} fit')
 
@@ -206,6 +200,76 @@ plt.ylabel('Magnetización M (emu/g)')
 plt.legend()
 plt.title('Comparación de ajuste vs datos experimentales')
 plt.grid(True)
+plt.show()
+
+#%%
+ms = pars['m_s']
+mu_mu = pars['<mu>_mu']
+ms_str = f"$M_s$ = {ms:.2uf} emu/g"
+mu_mu_str = f"$<\\mu>_\\mu$ = {mu_mu:.2uP} $\\mu_B$" if mu_mu is not None else ""
+ajuste_text = ms_str + "\n" + mu_mu_str
+
+plt.figure(figsize=(6,4), constrained_layout=True)
+plt.plot(H_horiz, m_horiz_norm, '.-', label='8A seco - Horizontal', alpha=0.5)
+
+for nombre, H_fit, m_exp_fit, m_fit, m_fit_sd in ajustes_seco_orientado:
+    plt.plot(H_fit, m_fit, '-', label='8A seco - Horizontal (fit)')
+
+plt.xlabel('H (G)')
+plt.ylabel('m (emu/g)')
+plt.legend()
+plt.grid(True)
+plt.gca().text(
+    0.75, 0.5, ajuste_text, transform=plt.gca().transAxes,
+    fontsize=10, va='center', ha='center',bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+)
+plt.savefig('8A_seco_orientado_horiz_fit.png', dpi=300)
+plt.show()
+
+#%% Paralelo
+ms = pars['m_s']
+mu_mu = pars['<mu>_mu']
+ms_str = f"$M_s$ = {ms:.2uf} emu/g"
+mu_mu_str = f"$<\\mu>_\\mu$ = {mu_mu:.2uP} $\\mu_B$" if mu_mu is not None else ""
+ajuste_text = ms_str + "\n" + mu_mu_str
+plt.figure(figsize=(6,4), constrained_layout=True)
+plt.plot(H_para, m_para_norm, '.-',c='C1', label='8A seco - Paralelo', alpha=0.5)
+for nombre, H_fit, m_exp_fit, m_fit, m_fit_sd in ajustes_seco_orientado:
+    if nombre == 'para':
+        plt.plot(H_fit, m_fit, '-', c='C2',label='8A seco - Paralelo (fit)')
+plt.xlabel('H (G)')
+plt.ylabel('m (emu/g)')
+plt.legend()
+plt.grid(True)
+plt.gca().text(
+    0.75, 0.5, ajuste_text, transform=plt.gca().transAxes,
+    fontsize=10, va='center', ha='center',bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+)
+plt.savefig('8A_seco_orientado_paralelo_fit.png', dpi=300)
+plt.show()
+
+#%% Vertical
+# Extraer valores para el cuadro de texto
+ms = pars['m_s']
+mu_mu = pars['<mu>_mu']
+ms_str = f"$M_s$ = {ms:.2uf} emu/g"
+mu_mu_str = f"$<\\mu>_\\mu$ = {mu_mu:.2uP}" if mu_mu is not None else ""
+ajuste_text = ms_str + "\n" + mu_mu_str
+
+plt.figure(figsize=(6,4), constrained_layout=True)
+plt.plot(H_verti, m_verti_norm, '.-',c='C3', label='8A seco - Vertical', alpha=0.5)
+for nombre, H_fit, m_exp_fit, m_fit, m_fit_sd in ajustes_seco_orientado:
+    if nombre == 'verti':
+        plt.plot(H_fit, m_fit, '-',c='C4', label='8A seco - Vertical (fit)')
+plt.xlabel('H (G)')
+plt.ylabel('m (emu/g)')
+plt.legend()
+plt.grid(True)
+plt.gca().text(
+    0.75, 0.5, ajuste_text, transform=plt.gca().transAxes,
+    fontsize=10, va='center', ha='center',bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+)
+plt.savefig('8A_seco_orientado_vertical_fit.png', dpi=300)
 plt.show()
 
 #%% 8A Seco
@@ -226,8 +290,9 @@ for a in [ax]:
     a.grid()
     a.set_ylabel('m (emu/g)')
 plt.xlabel('H (G)')
+plt.savefig('8A_seco_raw.png', dpi=300)
 plt.show()
-
+#%
 H_seco_anhist, m_seco_anhist = mt.anhysteretic(H_8A_seco, m_8A_seco_norm)
 
 ajustes_seco=[]
@@ -264,30 +329,32 @@ ajustes_seco.append(('seco', H_fit_seco, m_ah_seco, m_fit_seco,m_seco_fit_sin_di
 # Extraer valores para el cuadro de texto
 ms = pars['m_s']
 mu_mu = pars['<mu>_mu']
-ms_str = f"$M_s$ = {ms:.2uP} emu/g"
+ms_str = f"$M_s$ = {ms:.2uf} emu/g"
 mu_mu_str = f"$<\\mu>_\\mu$ = {mu_mu:.2uP}" if mu_mu is not None else ""
 ajuste_text = ms_str + "\n" + mu_mu_str
 
-plt.figure(figsize=(8,5), constrained_layout=True)
-
+#%
+plt.figure(figsize=(6,4), constrained_layout=True)
+plt.plot(H_8A_seco,m_8A_seco_norm,'.-', label='8A seco', alpha=0.5)
 for nombre, H, m_exp, m_fit,m_fit_sd in ajustes_seco:
-    plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
-    plt.plot(H, m_fit, '-', label=f'{nombre} fit')
-    plt.plot(H, m_fit_sd, '-', label=f'fit sd')
+    #plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
+    plt.plot(H, m_fit, '-', label=f'8A {nombre} fit')
+    #plt.plot(H, m_fit_sd, '-', label=f'fit sd')
 
 plt.xlabel('H (G)')
 plt.ylabel('m (emu/g)')
 plt.legend()
-plt.title('Comparación de ajuste vs datos experimentales - Seco')
+#plt.title('Comparación de ajuste vs datos experimentales - Seco')
 plt.grid(True)
 # Agregar cuadro de texto a la derecha
 plt.gca().text(
     0.75, 0.5, ajuste_text, transform=plt.gca().transAxes,
-    fontsize=11, va='center', ha='center',bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+    fontsize=10, va='center', ha='center',bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
 )
+plt.savefig('8A_seco_fit.png', dpi=300)
 plt.show()
 
-#%% 8A FF 
+#%% 8A FF
 data_8A_FF = np.loadtxt(os.path.join('data', '8A_FF.txt'), skiprows=12)
 H_8A_FF = data_8A_FF[:, 0]  # Gauss
 m_8A_FF = data_8A_FF[:, 1]  # emu
@@ -303,8 +370,9 @@ fig2, ax2 = plt.subplots(figsize=(6,4), constrained_layout=True)
 ax2.plot(H_8A_FF, m_8A_FF_norm, '.-', label='8A FF')
 ax2.legend(ncol=1)
 ax2.grid()
-ax2.set_ylabel('m (emu/g NPs)')
+ax2.set_ylabel('m (emu/g)')
 plt.xlabel('H (G)')
+plt.savefig('8A_FF_raw.png', dpi=300)
 plt.show()
 
 H_FF_anhist, m_FF_anhist = mt.anhysteretic(H_8A_FF, m_8A_FF_norm)
@@ -342,29 +410,30 @@ ajustes_FF.append(('FF', H_fit_FF, m_ah_FF, m_fit_FF, m_FF_fit_sin_diamag))
 # Extraer valores para el cuadro de texto
 ms_FF = pars_FF['m_s']
 mu_mu_FF = pars_FF['<mu>_mu']
-ms_str_FF = f"$M_s$ = {ms_FF:.2uP} emu/g"
-mu_mu_str_FF = f"$<\\mu>_\\mu$ = {mu_mu_FF:.2uP} \mu_B" if mu_mu_FF is not None else ""
+ms_str_FF = f"$M_s$ = {ms_FF:.2uf} emu/g"
+mu_mu_str_FF = f"$<\\mu>_\\mu$ = {mu_mu_FF:.2uP} $\\mu_B$" if mu_mu_FF is not None else ""
 ajuste_text_FF = ms_str_FF + "\n" + mu_mu_str_FF
-#%%
-plt.figure(figsize=(8,5), constrained_layout=True)
+
+plt.figure(figsize=(6,4), constrained_layout=True)
+plt.plot(H_8A_FF,m_8A_FF_norm,'.-', label='8A FF', alpha=0.5)
 for nombre, H, m_exp, m_fit, m_fit_sd in ajustes_FF:
+    plt.plot(H, m_fit, '-', label=f'8A {nombre} fit')
     #plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
-    plt.plot(H, m_fit, '-', label=f'{nombre} fit')
-    plt.plot(H, m_fit_sd, '-', label=f'fit sd')
-plt.plot(H_8A_FF,m_8A_FF_norm,'.-', label='8A FF exp', alpha=0.5)
+    #plt.plot(H, m_fit_sd, '-', label=f'fit sd')
 plt.xlabel('H (G)')
-plt.ylabel('m (emu/g NPs)')
+plt.ylabel('m (emu/g)')
 plt.legend()
-plt.title('Comparación de ajuste vs datos experimentales - FF')
+#plt.title('Comparación de ajuste vs datos experimentales - FF')
 plt.grid(True)
 plt.gca().text(
     0.75, 0.5, ajuste_text_FF, transform=plt.gca().transAxes,
-    fontsize=11, va='center', ha='center', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+    fontsize=10, va='center', ha='center', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
 )
+plt.savefig('8A_FF_fit.png', dpi=300)
 plt.show()
 
-# %% 
-#PLOTEO NORMALIZADO al maximo valor 
+# %%
+#PLOTEO NORMALIZADO al maximo valor
 fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
 a.plot(H_horiz, m_horiz_norm/max(m_horiz_norm), '-', label=f'Seco Horizontal')
 a.plot(H_para, m_para_norm/max( m_para_norm), '-', label=f'Seco Paralelo')
@@ -379,13 +448,13 @@ plt.show()
 #%% COmparo 8A orientado h,p,v con FF
 # Comparación de m normalizados descontando la contribución diamagnética
 
-fig, a = plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
+fig, a = plt.subplots(1, 1, figsize=(6,4), sharex=True, sharey=True, constrained_layout=True)
 
+a.plot(H_8A_FF, m_8A_FF_norm / max(m_8A_FF_norm), '-', label='8A FF')
+a.plot(H_fit_seco, m_seco_fit_sin_diamag / max(m_seco_fit_sin_diamag), '-', label='8A seco fit')
 for nombre, H, m_exp, m_fit, m_fit_sd in ajustes_seco_orientado:
-    a.plot(H, m_fit_sd / max(m_fit_sd), '-', label=f'Seco orientado {nombre} fit sd')
+    a.plot(H, m_fit_sd / max(m_fit_sd), '-', label=f'8A seco {nombre} fit')
 
-a.plot(H_8A_FF, m_8A_FF_norm / max(m_8A_FF_norm), '-', label='8A FF') 
-a.plot(H_fit_seco, m_seco_fit_sin_diamag / max(m_seco_fit_sin_diamag), '-', label='8A seco sin orientar fit sd')
 # # Seco orientado (horizontal, paralelo, vertical) - ya descontado diamagnetismo en m_fit_sin_diamag
 # a.plot(H_horiz, (ajustes_seco_orientado[0][3] - H_horiz*fit3.session.units['C']`` - fit3.session.units['dc'])/max(ajustes_seco_orientado[0][3] - H_horiz*fit3.session.units['C'] - fit3.session.units['dc']), '-', c='C0', label='Horizontal fit sd')
 # a.plot(H_para, (ajustes_seco_orientado[1][3] - H_para*fit3.session.units['C'] - fit3.session.units['dc'])/max(ajustes_seco_orientado[1][3] - H_para*fit3.session.units['C'] - fit3.session.units['dc']), '-', c='C1', label='Paralelo fit sd')
@@ -395,14 +464,35 @@ a.plot(H_fit_seco, m_seco_fit_sin_diamag / max(m_seco_fit_sin_diamag), '-', labe
 # 8A FF y 8A seco sin orientar (ya tienes m_FF_fit_sin_diamag y m_seco_fit_sin_diamag)
 #a.plot(H_fit_FF, m_FF_fit_sin_diamag / max(m_FF_fit_sin_diamag), '-', c='C3', label='8A FF fit sd')
 #a.plot(H_fit_seco, m_seco_fit_sin_diamag / max(m_seco_fit_sin_diamag), '-', c='C4', label='8A seco sin orientar fit sd')
-a.set_xlim(0,19e3)
-a.set_ylim(0,1.1)
-a.set_ylabel('m/m_s (sin diamagnetismo)')
+# a.set_xlim(0,19e3)
+# a.set_ylim(0,1.1)
+a.set_ylabel('m/m$_s$')
 a.set_xlabel('H (G)')
 a.legend()
 a.grid()
-a.set_title('Comparación m normalizados (sin contribución diamagnética)')
+plt.savefig('Comparacion_8A_FF_seco_orientado_fit_sd.png', dpi=300)
+# a.set_title('Comparación m normalizados (sin contribución diamagnética)')
+plt.show()
+
+fig, a = plt.subplots(1, 1, figsize=(6,4), sharex=True, sharey=True, constrained_layout=True)
+
+a.plot(H_8A_FF, m_8A_FF_norm / max(m_8A_FF_norm), '.-', label='8A FF')
+a.plot(H_fit_seco, m_seco_fit_sin_diamag / max(m_seco_fit_sin_diamag), '-', label='8A seco fit')
+for nombre, H, m_exp, m_fit, m_fit_sd in ajustes_seco_orientado:
+    a.plot(H, m_fit_sd / max(m_fit_sd), '-', label=f'8A seco {nombre} fit')
+a.set_xlim(0,19e3)
+a.set_ylim(0,1.05)
+a.set_ylabel('m/m$_s$')
+
+a.set_xlabel('H (G)')
+a.legend()
+a.grid()
+plt.savefig('Comparacion_8A_FF_seco_orientado_fit_sd_zoom.png', dpi=300)
+# a.set_title('Comparación m normalizados (sin contribución diamagnética)')
 plt.show()
 
 
 
+
+
+# %%
