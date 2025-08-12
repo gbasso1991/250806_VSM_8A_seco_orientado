@@ -9,7 +9,7 @@ from mlognormfit import fit3
 from mvshtools import mvshtools as mt
 import re
 from uncertainties import ufloat
-#%%
+#%% Funciones
 def lineal(x,m,n):
     return m*x+n
 
@@ -151,7 +151,7 @@ plt.show()
 
 # %% Fitting 
 # Para almacenar resultados para graficar luego
-ajustes = []
+ajustes_seco_orientado = []
 
 for nombre, H, m in [
     ('horiz', H_horiz, m_horiz_norm), 
@@ -193,56 +193,243 @@ for nombre, H, m in [
     H_fit = fit.X
     m_exp = fit.Y
     m_model = fit.Yfit  # resultado del ajuste
-    ajustes.append((nombre, H_fit, m_exp, m_model))
+    ajustes_seco_orientado.append((nombre, H_fit, m_exp, m_model))
 
-plt.figure(figsize=(10, 6))
-for nombre, H, m_exp, m_fit in ajustes:
+plt.figure(figsize=(10, 6),constrained_layout=True)
+for nombre, H, m_exp, m_fit in ajustes_seco_orientado:
     plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
     plt.plot(H, m_fit, '-', label=f'{nombre} fit')
 
-plt.xlabel('Campo magnético H (Oe)')
-plt.ylabel('Magnetización M (emu o emu/g)')
+plt.xlabel('Campo magnético H (G)')
+plt.ylabel('Magnetización M (emu/g)')
 plt.legend()
 plt.title('Comparación de ajuste vs datos experimentales')
 plt.grid(True)
-plt.tight_layout()
 plt.show()
 
-
-# %% Ahora comparo con 8A en FF y 8A seco
-data_8A_FF = np.loadtxt(os.path.join('data_FF','8A_FF.txt'), skiprows=12)
+# %% Ahora 8A en FF 
+data_8A_FF = np.loadtxt(os.path.join('data', '8A_FF.txt'), skiprows=12)
 H_8A_FF = data_8A_FF[:, 0]  # Gauss
 m_8A_FF = data_8A_FF[:, 1]  # emu
-masa_8A_FF=0.0496 #g
+masa_8A_FF = 0.0496  # g
 C_mm = 10/1000 # uso densidad del H2O 1000 g/L
 
-data_8A_seco = np.loadtxt(os.path.join('data_seco','8A_seco.txt'), skiprows=12)
+# Normalizo por masa
+m_8A_FF_norm = m_8A_FF / masa_8A_FF /C_mm
+
+# Obtener curva anhistérica
+H_FF_anhist, m_FF_anhist = mt.anhysteretic(H_8A_FF, m_8A_FF_norm)
+
+ajustes_FF=[]
+# Ajuste para FF
+fit_FF = fit3.session(H_FF_anhist, m_FF_anhist, fname='FF', divbymass=False)
+
+# Primer ajuste con mu y sigma fijos
+fit_FF.fix('sig0')
+fit_FF.fix('mu0')
+fit_FF.free('dc')
+fit_FF.fit()
+fit_FF.update()
+
+# Segundo ajuste liberando mu y sigma
+fit_FF.free('sig0')
+fit_FF.free('mu0')
+fit_FF.set_yE_as('sep')  # pesos por separación
+fit_FF.fit()
+fit_FF.update()
+fit_FF.save()
+fit_FF.print_pars()
+pars = fit_FF.derived_parameters()
+for key, val in pars.items():
+    unit = fit3.session.units.get(key, '')
+    print(f"{key:15s} = {val} {unit}")
+
+H_fit_FF = fit_FF.X
+m_exp_FF = fit_FF.Y
+m_model_FF = fit_FF.Yfit  # resultado del ajuste
+ajustes_FF.append(('FF', H_fit_FF, m_exp_FF, m_model_FF))
+#%%
+plt.figure(figsize=(8, 5), constrained_layout=True)
+for nombre, H, m_exp, m_fit in ajustes_FF:
+    plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
+    plt.plot(H, m_fit, '-', label=f'{nombre} fit')
+
+plt.xlabel('Campo magnético H (G)')
+plt.ylabel('Magnetización M (emu/g)')
+plt.legend()
+plt.title('Comparación de ajuste vs datos experimentales')
+plt.grid(True)
+plt.show()
+
+#%%
+data_8A_seco = np.loadtxt(os.path.join('data','8A_seco_pfilm.txt'), skiprows=12)
 H_8A_seco = data_8A_seco[:, 0]  # Gauss
 m_8A_seco = data_8A_seco[:, 1]
 masa_8A_seco=0.00028 #g
 
-data_parafilm = np.loadtxt(os.path.join('data_seco','Parafilm.txt'), skiprows=12)
-H_parafilm = data_parafilm[:, 0]  # Gauss
-m_parafilm = data_parafilm[:, 1]  # emu 
+# data_parafilm = np.loadtxt(os.path.join('data_seco','Parafilm.txt'), skiprows=12)
+# H_parafilm = data_parafilm[:, 0]  # Gauss
+# m_parafilm = data_parafilm[:, 1]  # emu 
 
+#% Armo vectores
+# H_parafilm = data_parafilm[:, 0]  # Gauss
+# m_parafilm = data_parafilm[:, 1]  # emu
 
-#%% Armo vectores
-H_parafilm = data_parafilm[:, 0]  # Gauss
-m_parafilm = data_parafilm[:, 1]  # emu
-
-H_8A = data_8A[:, 0]  # Gauss
-m_8A = data_8A[:, 1]  # emu
-
+H_8A_seco = data_8A_seco[:, 0]  # Gauss
+m_8A_seco = data_8A_seco[:, 1]  # emu
+m_8A_seco_norm = m_8A_seco / masa_8A_seco  # Normalizo por masa
 fig1, ax = plt.subplots(figsize=(6,4), constrained_layout=True)
-ax.plot(H_parafilm, m_parafilm, '.-', label='Parafilm')
-ax.plot(H_8A, m_8A, '.-', label='8A seco')
+#ax.plot(H_parafilm, m_parafilm, '.-', label='Parafilm')
+ax.plot(H_8A_seco, m_8A_seco_norm, '.-', label='8A seco')
 
 for a in [ax]:
     a.legend(ncol=1)
     a.grid()
-    a.set_ylabel('m (emu)')
+    a.set_ylabel('m (emu/g)')
 plt.xlabel('H (G)')
 plt.show()
+
+H_seco_anhist, m_seco_anhist = mt.anhysteretic(H_8A_seco, m_8A_seco_norm)
+
+ajustes_seco=[]
+# Ajuste para seco
+fit_seco = fit3.session(H_seco_anhist, m_seco_anhist, fname='seco', divbymass=False)
+
+# Primer ajuste con mu y sigma fijos
+fit_seco.fix('sig0')
+fit_seco.fix('mu0')
+fit_seco.free('dc')
+fit_seco.fit()
+fit_seco.update()
+
+# Segundo ajuste liberando mu y sigma
+fit_seco.free('sig0')
+fit_seco.free('mu0')
+fit_seco.set_yE_as('sep')  # pesos por separación
+fit_seco.fit()
+fit_seco.update()
+fit_seco.save()
+fit_seco.print_pars()
+pars = fit_seco.derived_parameters()
+for key, val in pars.items():
+    unit = fit3.session.units.get(key, '')
+    print(f"{key:15s} = {val} {unit}")
+
+H_fit_seco = fit_seco.X
+m_exp_seco = fit_seco.Y
+m_fit_seco = fit_seco.Yfit  # resultado del ajuste
+m_seco_fit_sin_diamag= m_fit_seco - H_fit_seco*fit_seco.params['C'].value -fit_seco.params['dc'].value # Resto de diamagnetismo
+
+ajustes_seco.append(('seco', H_fit_seco, m_exp_seco, m_fit_seco,m_seco_fit_sin_diamag))
+
+# Extraer valores para el cuadro de texto
+ms = pars['m_s']
+mu_mu = pars['<mu>_mu']
+ms_str = f"$M_s$ = {ms:.2uP} emu/g"
+mu_mu_str = f"$<\\mu>_\\mu$ = {mu_mu:.2uP}" if mu_mu is not None else ""
+ajuste_text = ms_str + "\n" + mu_mu_str
+
+plt.figure(figsize=(8,5), constrained_layout=True)
+
+for nombre, H, m_exp, m_fit,m_fit_sd in ajustes_seco:
+    plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
+    plt.plot(H, m_fit, '-', label=f'{nombre} fit')
+    plt.plot(H, m_fit_sd, '-', label=f'fit sd')
+
+plt.xlabel('H (G)')
+plt.ylabel('m (emu/g)')
+plt.legend()
+plt.title('Comparación de ajuste vs datos experimentales - Seco')
+plt.grid(True)
+# Agregar cuadro de texto a la derecha
+plt.gca().text(
+    0.75, 0.5, ajuste_text, transform=plt.gca().transAxes,
+    fontsize=11, va='center', ha='center',bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+)
+plt.show()
+
+#%% # %% Repetir análisis para el caso FF (ferrofluido)
+data_8A_FF = np.loadtxt(os.path.join('data', '8A_FF.txt'), skiprows=12)
+H_8A_FF = data_8A_FF[:, 0]  # Gauss
+m_8A_FF = data_8A_FF[:, 1]  # emu
+masa_8A_FF = 0.0496  # g (masa total de muestra)
+C_mm = 10/1000  # concentración masa/mL (g/mL), 10 mg/mL = 0.01 g/mL
+
+# Normalizo por masa de NPs en la muestra (m_emu / masa_NP)
+# masa_NP = masa_total * C_mm (en g)
+masa_NP_FF = masa_8A_FF * C_mm  # g de NPs en la muestra
+m_8A_FF_norm = m_8A_FF / masa_NP_FF
+
+fig2, ax2 = plt.subplots(figsize=(6,4), constrained_layout=True)
+ax2.plot(H_8A_FF, m_8A_FF_norm, '.-', label='8A FF')
+ax2.legend(ncol=1)
+ax2.grid()
+ax2.set_ylabel('m (emu/g NPs)')
+plt.xlabel('H (G)')
+plt.show()
+
+H_FF_anhist, m_FF_anhist = mt.anhysteretic(H_8A_FF, m_8A_FF_norm)
+
+ajustes_FF = []
+fit_FF = fit3.session(H_FF_anhist, m_FF_anhist, fname='FF', divbymass=False)
+
+# Primer ajuste con mu y sigma fijos
+fit_FF.fix('sig0')
+fit_FF.fix('mu0')
+fit_FF.free('dc')
+fit_FF.fit()
+fit_FF.update()
+
+# Segundo ajuste liberando mu y sigma
+fit_FF.free('sig0')
+fit_FF.free('mu0')
+fit_FF.set_yE_as('sep')
+fit_FF.fit()
+fit_FF.update()
+fit_FF.save()
+fit_FF.print_pars()
+pars_FF = fit_FF.derived_parameters()
+for key, val in pars_FF.items():
+    unit = fit3.session.units.get(key, '')
+    print(f"{key:15s} = {val} {unit}")
+
+H_fit_FF = fit_FF.X
+m_exp_FF = fit_FF.Y
+m_fit_FF = fit_FF.Yfit
+m_FF_fit_sin_diamag = m_fit_FF - H_fit_FF*fit_FF.params['C'].value - fit_FF.params['dc'].value
+
+ajustes_FF.append(('FF', H_fit_FF, m_exp_FF, m_fit_FF, m_FF_fit_sin_diamag))
+
+# Extraer valores para el cuadro de texto
+ms_FF = pars_FF['m_s']
+mu_mu_FF = pars_FF['<mu>_mu']
+ms_str_FF = f"$M_s$ = {ms_FF:.2uP} emu/g"
+mu_mu_str_FF = f"$<\\mu>_\\mu$ = {mu_mu_FF:.2uP} " if mu_mu_FF is not None else ""
+ajuste_text_FF = ms_str_FF + "\n" + mu_mu_str_FF
+
+plt.figure(figsize=(8,5), constrained_layout=True)
+for nombre, H, m_exp, m_fit, m_fit_sd in ajustes_FF:
+    plt.plot(H, m_exp, 'o', label=f'{nombre} exp', alpha=0.5)
+    plt.plot(H, m_fit, '-', label=f'{nombre} fit')
+    plt.plot(H, m_fit_sd, '-', label=f'fit sd')
+
+plt.xlabel('H (G)')
+plt.ylabel('m (emu/g NPs)')
+plt.legend()
+plt.title('Comparación de ajuste vs datos experimentales - FF')
+plt.grid(True)
+plt.gca().text(
+    0.75, 0.5, ajuste_text_FF, transform=plt.gca().transAxes,
+    fontsize=11, va='center', ha='center', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+)
+plt.show()
+
+
+
+
+
+
+
 #%% Resto contribucion lineal
 # normalizo -> pendiente -> escaleo -> resto
 masa_pfilm_virgen=56.20 #mg (medida sin NP)
@@ -267,9 +454,9 @@ m_8A_sin_diamag=m_8A-m_aux #emu   - Resto
 # %% 
 #PLOTEO NORMALIZADO al maximo valor 
 fig, a= plt.subplots(1, 1, figsize=(8, 5), sharex=True, sharey=True, constrained_layout=True)
-a.plot(H_horiz, m_horiz_norm/max(m_horiz_norm), '-', label=f'Horizontal')
-a.plot(H_para, m_para_norm/max( m_para_norm), '-', label=f'Paralelo')
-a.plot(H_verti, m_verti_norm/max(m_verti_norm), '-', label=f'Vertical')
+a.plot(H_horiz, m_horiz_norm/max(m_horiz_norm), '-', label=f'Seco Horizontal')
+a.plot(H_para, m_para_norm/max( m_para_norm), '-', label=f'Seco Paralelo')
+a.plot(H_verti, m_verti_norm/max(m_verti_norm), '-', label=f'Seco Vertical')
 
 
 
@@ -278,5 +465,13 @@ a.set_ylabel('m (emu)')
 a.legend()
 a.grid()
 a.set_title('8A - Secado c/ iman y orientado - normalizado a valor maximo')
-plt.savefig('8A_seco_orientado_h_p_v.png', dpi=300)
+#plt.savefig('8A_seco_orientado_h_p_v.png', dpi=300)
 plt.show()
+#%% COmparo 8A orientado h,p,v con FF
+
+
+fig1, ax = plt.subplots(figsize=(6,4), constrained_layout=True)
+
+ax.plot(H_8A, m_8A, '-', label='8A seco')   
+
+
